@@ -9,7 +9,7 @@ local previousVersion = GameVersion.get()
 GameVersion.set("emerald")
 Profile.reset()
 
-local run = T.sdk.loadMod("mods/exp_qol", {
+local run = T.sdk.loadMod(".", {
   data = T.sdk.gen3Data(),
   generation = 3,
 })

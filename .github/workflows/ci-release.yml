@@ -30,7 +30,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y luajit
 
       - name: Run Emerald mod test
-        run: luajit mods/exp_qol/tests/exp_qol_test.lua
+        run: luajit tests/exp_qol_test.lua
 
       - name: Strict modkit validation
         run: python3 gen1recomp/tools/modkit.py --repo gen1recomp validate "$GITHUB_WORKSPACE" --base fixture --strict
