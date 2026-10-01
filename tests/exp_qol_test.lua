@@ -1,4 +1,5 @@
-package.path = "gen1recomp/?.lua;gen1recomp/?/init.lua;" .. package.path
+local engineRoot = os.getenv("GEN1RECOMP_ROOT") or "gen1recomp"
+package.path = engineRoot .. "/?.lua;" .. engineRoot .. "/?/init.lua;" .. package.path
 
 local T = require("tests.modkit")
 local Runtime = require("src.mods.Runtime")

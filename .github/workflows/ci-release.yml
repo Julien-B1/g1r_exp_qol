@@ -24,7 +24,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Gen1Recomp test harness
-        run: git clone --depth 1 --branch dev https://github.com/bryanthaboi/gen1recomp.git gen1recomp
+        run: git clone --depth 1 --branch dev https://github.com/bryanthaboi/gen1recomp.git "$RUNNER_TEMP/gen1recomp"
 
       - name: Install LuaJIT
         run: sudo apt-get update && sudo apt-get install -y luajit
@@ -32,16 +32,17 @@ jobs:
       - name: Run Emerald mod test
         env:
           EXP_QOL_MOD_PATH: ${{ github.workspace }}
+          GEN1RECOMP_ROOT: ${{ runner.temp }}/gen1recomp
         run: luajit tests/exp_qol_test.lua
 
       - name: Strict modkit validation
-        run: python3 gen1recomp/tools/modkit.py --repo gen1recomp validate "$GITHUB_WORKSPACE" --base fixture --strict
+        run: python3 "$RUNNER_TEMP/gen1recomp/tools/modkit.py" --repo "$RUNNER_TEMP/gen1recomp" validate "$GITHUB_WORKSPACE" --base fixture --strict
 
       - name: Modkit lint
-        run: python3 gen1recomp/tools/modkit.py --repo gen1recomp lint "$GITHUB_WORKSPACE"
+        run: python3 "$RUNNER_TEMP/gen1recomp/tools/modkit.py" --repo "$RUNNER_TEMP/gen1recomp" lint "$GITHUB_WORKSPACE"
 
       - name: Verify installable package
-        run: python3 gen1recomp/tools/modkit.py --repo gen1recomp pack "$GITHUB_WORKSPACE" --base fixture --output "$RUNNER_TEMP/exp_qol-ci.modpkg"
+        run: python3 "$RUNNER_TEMP/gen1recomp/tools/modkit.py" --repo "$RUNNER_TEMP/gen1recomp" pack "$GITHUB_WORKSPACE" --base fixture --output "$RUNNER_TEMP/exp_qol-ci.modpkg"
 
   release:
     name: Release merged pull request
@@ -58,7 +59,7 @@ jobs:
           fetch-depth: 0
 
       - name: Checkout Gen1Recomp packer
-        run: git clone --depth 1 --branch dev https://github.com/bryanthaboi/gen1recomp.git gen1recomp
+        run: git clone --depth 1 --branch dev https://github.com/bryanthaboi/gen1recomp.git "$RUNNER_TEMP/gen1recomp"
 
       - name: Install LuaJIT
         run: sudo apt-get update && sudo apt-get install -y luajit
@@ -174,7 +175,7 @@ jobs:
           PY
 
           package="$RUNNER_TEMP/$MOD_ID-$VERSION.modpkg"
-          python3 gen1recomp/tools/modkit.py --repo gen1recomp pack "$staging" --base fixture --output "$package"
+          python3 "$RUNNER_TEMP/gen1recomp/tools/modkit.py" --repo "$RUNNER_TEMP/gen1recomp" pack "$staging" --base fixture --output "$package"
           cp "$package" "$output/$MOD_ID-$VERSION.zip"
           (cd "$output" && sha256sum "$MOD_ID-$VERSION.zip" > sha256sums.txt)
 
