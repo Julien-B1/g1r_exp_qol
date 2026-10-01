@@ -10,11 +10,14 @@ local previousVersion = GameVersion.get()
 GameVersion.set("emerald")
 Profile.reset()
 
-local run = T.sdk.loadMod(os.getenv("EXP_QOL_MOD_PATH") or "mods/exp_qol", {
+local modPath = os.getenv("EXP_QOL_MOD_PATH") or "mods/exp_qol"
+local run = T.sdk.loadMod(modPath, {
+  root = modPath:sub(1, 1) == "/" and "/" or nil,
   data = T.sdk.gen3Data(),
   generation = 3,
 })
 T.eq(#run.errors, 0, "loads clean (" .. tostring(run.errors[1]) .. ")")
+T.check(run.mod ~= nil, "the SDK loader discovers this mod path")
 
 local session = { version = "emerald" }
 local game = {
