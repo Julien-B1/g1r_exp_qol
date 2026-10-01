@@ -1,19 +1,24 @@
-package.path = "gen1recomp/?.lua;gen1recomp/?/init.lua;" .. package.path
+local engineRoot = os.getenv("GEN1RECOMP_ROOT") or "gen1recomp"
+package.path = engineRoot .. "/?.lua;" .. engineRoot .. "/?/init.lua;" .. package.path
 
 local T = require("tests.modkit")
 local Runtime = require("src.mods.Runtime")
 local GameVersion = require("src.core.GameVersion")
 local Profile = require("src.core.game3.profile")
+local Options = require("src.core.game3.options")
 
 local previousVersion = GameVersion.get()
 GameVersion.set("emerald")
 Profile.reset()
 
-local run = T.sdk.loadMod("mods/exp_qol", {
+local modPath = os.getenv("EXP_QOL_MOD_PATH") or "mods/exp_qol"
+local run = T.sdk.loadMod(modPath, {
+  root = modPath:sub(1, 1) == "/" and "/" or nil,
   data = T.sdk.gen3Data(),
   generation = 3,
 })
 T.eq(#run.errors, 0, "loads clean (" .. tostring(run.errors[1]) .. ")")
+T.check(run.mod ~= nil, "the SDK loader discovers this mod path")
 
 local session = { version = "emerald" }
 local game = {
@@ -22,20 +27,29 @@ local game = {
   writes = 0,
   writeOptions = function(self) self.writes = self.writes + 1 end,
 }
+Options.bind(session, game.options)
 
 local OptionMenu = require("src.ui.game3.rse.option_menu")
 local Rows = require("src.ui.game3.option_rows")
-OptionMenu.show({ game = game, session = session })
-local root = OptionMenu._st.pages[1]
+Rows._expQolOriginalBuild = function()
+  return { { id = "battleScene" }, { id = "battleStyle" } }
+end
+
+local context = { options = game.options, session = session, game = game }
+local builtRows = Rows.build(context)
+local pages = {}
+local root = Rows.group(builtRows, function(title, members)
+  pages[#pages + 1] = { title = title, rows = members, index = 1, scroll = 0 }
+end)
 local battleGroup
-for _, row in ipairs(root.rows) do
+for _, row in ipairs(root) do
   if row.id == "group.battle" then battleGroup = row end
 end
 T.check(battleGroup ~= nil, "BATTLE OPTIONS remains in the Emerald options menu")
 
 if battleGroup then
-  battleGroup.activate(OptionMenu._st.ctx)
-  local battlePage = OptionMenu._st.pages[2]
+  battleGroup.activate(context)
+  local battlePage = pages[1]
   local expRow, expIndex
   for index, row in ipairs(battlePage.rows) do
     if row.id == "expQolMultiplier" then
@@ -50,6 +64,8 @@ if battleGroup then
     local function pressed(button)
       return { wasPressed = function(_, key) return key == button end }
     end
+    OptionMenu._st.ctx = context
+    OptionMenu._st.pages = { battlePage }
     battlePage.index = expIndex
     for _, rate in ipairs({ 2, 5, 10, 100, 1 }) do
       OptionMenu.handleInput(pressed("right"))
@@ -66,7 +82,7 @@ if battleGroup then
   end
 end
 
-OptionMenu.close()
+OptionMenu.reset()
 run.release()
 local unloadedRows = Rows.build({ options = game.options, session = session })
 local rowRemains = false
