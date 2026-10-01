@@ -30,6 +30,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y luajit
 
       - name: Run Emerald mod test
+        env:
+          EXP_QOL_MOD_PATH: ${{ github.workspace }}
         run: luajit tests/exp_qol_test.lua
 
       - name: Strict modkit validation

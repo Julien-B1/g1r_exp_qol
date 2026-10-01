@@ -4,12 +4,13 @@ local T = require("tests.modkit")
 local Runtime = require("src.mods.Runtime")
 local GameVersion = require("src.core.GameVersion")
 local Profile = require("src.core.game3.profile")
+local Options = require("src.core.game3.options")
 
 local previousVersion = GameVersion.get()
 GameVersion.set("emerald")
 Profile.reset()
 
-local run = T.sdk.loadMod(".", {
+local run = T.sdk.loadMod(os.getenv("EXP_QOL_MOD_PATH") or "mods/exp_qol", {
   data = T.sdk.gen3Data(),
   generation = 3,
 })
@@ -22,6 +23,7 @@ local game = {
   writes = 0,
   writeOptions = function(self) self.writes = self.writes + 1 end,
 }
+Options.bind(session, game.options)
 
 local OptionMenu = require("src.ui.game3.rse.option_menu")
 local Rows = require("src.ui.game3.option_rows")
