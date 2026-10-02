@@ -6,6 +6,16 @@ local Runtime = require("src.mods.Runtime")
 local GameVersion = require("src.core.GameVersion")
 local Profile = require("src.core.game3.profile")
 local Options = require("src.core.game3.options")
+local Experience = require("src.core.game3.battle.experience")
+
+-- Pokemon.speciesMeta reads a ROM-imported cache file this fixture never
+-- populates; stub the one foe species this suite uses so expYield is
+-- deterministic without a ROM import.
+local originalExpYield = Experience.expYield
+Experience.expYield = function(species)
+  if tonumber(species) == 29 then return 59 end
+  return originalExpYield(species)
+end
 
 local previousVersion = GameVersion.get()
 GameVersion.set("emerald")
@@ -80,7 +90,92 @@ if battleGroup then
     T.eq(gained, 1200, "the selected rate multiplies Emerald battle EXP")
     T.eq(game.writes, 6, "each selector change persists game options")
   end
+
+  local shareRow, shareIndex
+  for index, row in ipairs(battlePage.rows) do
+    if row.id == "expQolShareMode" then
+      shareRow, shareIndex = row, index
+    end
+  end
+  T.check(shareRow ~= nil, "EXP SHARE is inside BATTLE OPTIONS")
+
+  if shareRow then
+    T.eq(shareRow.value(game), "OFF", "the default Exp Share mode is OFF")
+
+    local function pressed(button)
+      return { wasPressed = function(_, key) return key == button end }
+    end
+    OptionMenu._st.pages = { battlePage }
+    battlePage.index = shareIndex
+    for _, label in ipairs({ "OLD SCHOOL", "MODERN", "FULL", "BALANCE", "OFF" }) do
+      OptionMenu.handleInput(pressed("right"))
+      T.eq(shareRow.value(game), label, "right selects " .. label)
+    end
+    OptionMenu.handleInput(pressed("left"))
+    T.eq(shareRow.value(game), "BALANCE", "left selects the previous mode")
+
+    -- Direct math checks: a level 10 battler plus two bench mons (level 5
+    -- and level 50) against a level 10 foe (expYield 59, calculated = 84).
+    -- These call the exp.gain hook directly, mirroring the engine's own
+    -- payload shape, since Experience.awardFoe needs a ROM-imported species
+    -- name pack this fixture does not provide.
+    game.options["expQolMultiplier"] = nil
+    session.options["expQolMultiplier"] = nil
+    local party = {
+      { species = 4, level = 10, hp = 30, maxHp = 30 },
+      { species = 4, level = 5, hp = 20, maxHp = 20 },
+      { species = 4, level = 50, hp = 90, maxHp = 90 },
+    }
+
+    local function vanillaStub() return 999 end
+
+    local function ctxFor(mode, partyIndex)
+      session.options["expQolShareMode"] = mode
+      return {
+        battle = { playerParty = party, session = session, player = { partyIndex = 1 } },
+        loser = { species = 29, level = 10 },
+        level = 10,
+        index = partyIndex,
+        mon = party[partyIndex],
+      }
+    end
+
+    T.eq(Runtime.call("exp.gain", vanillaStub, ctxFor("off", 1)), 999,
+      "OFF leaves the vanilla amount untouched")
+
+    T.eq(Runtime.call("exp.gain", vanillaStub, ctxFor("old_school", 1)), 98,
+      "Old School: battler keeps its split plus the bonus share")
+    T.eq(Runtime.call("exp.gain", vanillaStub, ctxFor("old_school", 2)), 14,
+      "Old School: bench gets only the bonus share")
+    T.eq(Runtime.call("exp.gain", vanillaStub, ctxFor("old_school", 3)), 14,
+      "Old School: every bench slot gets the same bonus share")
+
+    T.eq(Runtime.call("exp.gain", vanillaStub, ctxFor("modern", 1)), 84,
+      "Modern: the battler keeps the full amount")
+    T.eq(Runtime.call("exp.gain", vanillaStub, ctxFor("modern", 2)), 42,
+      "Modern: the bench gets a flat half share")
+    T.eq(Runtime.call("exp.gain", vanillaStub, ctxFor("modern", 3)), 42,
+      "Modern: every bench slot gets the same half share")
+
+    T.eq(Runtime.call("exp.gain", vanillaStub, ctxFor("full", 1)), 84,
+      "Full: the battler gets the full amount")
+    T.eq(Runtime.call("exp.gain", vanillaStub, ctxFor("full", 2)), 84,
+      "Full: the bench also gets the full amount")
+    T.eq(Runtime.call("exp.gain", vanillaStub, ctxFor("full", 3)), 84,
+      "Full: every eligible slot gets the full amount")
+
+    T.eq(Runtime.call("exp.gain", vanillaStub, ctxFor("balance", 1)), 32,
+      "Balance: the level 10 battler's weighted share")
+    T.eq(Runtime.call("exp.gain", vanillaStub, ctxFor("balance", 2)), 33,
+      "Balance: the level 5 bench mon gets the largest share")
+    T.eq(Runtime.call("exp.gain", vanillaStub, ctxFor("balance", 3)), 17,
+      "Balance: the level 50 bench mon gets the smallest share")
+
+    session.options["expQolShareMode"] = nil
+  end
 end
+
+Experience.expYield = originalExpYield
 
 OptionMenu.reset()
 run.release()
