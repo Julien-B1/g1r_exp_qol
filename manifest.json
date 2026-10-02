@@ -9,7 +9,7 @@
   "games": ["emerald"],
   "game_version": ">=0.0.0 <2.0.0",
   "github": "Julien-B1/g1r_exp_qol",
-  "description": "Adds a selectable battle EXP multiplier to Emerald.",
+  "description": "Adds a selectable battle EXP multiplier and a 5-mode Exp Share to Emerald.",
   "permissions": ["engine_internals"],
   "dependencies": [],
   "optional_dependencies": [],
